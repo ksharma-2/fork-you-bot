@@ -30,6 +30,6 @@ def start_server():
 
 if __name__ == "__main__":
     # DB = MongoDbHandler(os.environ["DB_URL"], os.environ["DB_PASSWORD"])
-    # thread = threading.Thread(target=start_server, args=[])
-    # thread.start()
+    thread = threading.Thread(target=start_server, args=[])
+    thread.start()
     client.run(os.environ["DISCORD_CLIENT_SECRET"])
