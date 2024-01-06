@@ -4,12 +4,13 @@ import threading
 import discord
 import flask
 from discord import app_commands
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from flask import request
 from flask_cors import CORS
 from utils import get_message_details
+import sys
 
-load_dotenv("local/.env")
+load_dotenv()
 
 intents = discord.Intents.all()
 intents.message_content = True
