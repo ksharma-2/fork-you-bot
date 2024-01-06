@@ -16,9 +16,19 @@ intents.message_content = True
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
+guild = discord.Guild
+
 app = flask.Flask(__name__)
 CORS(app)
 
+@client.event
+async def on_message(message):
+    message_content = message.content
+    message_author = message.author
+    print(str(message_author) + " said " + message_content)
+    print(message)
+    if message.content == "fuck off":
+        await message.delete()
 
 @client.event
 async def on_ready():
