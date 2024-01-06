@@ -1,2 +1,2 @@
 discordbotenv/
-discord_bot/.env
+*.env
