@@ -9,7 +9,7 @@ from flask import request
 from flask_cors import CORS
 from utils import get_message_details
 
-load_dotenv()
+load_dotenv("../local/local.env")
 
 intents = discord.Intents.all()
 intents.message_content = True
