@@ -41,12 +41,13 @@ async def on_message(message):
     contextID = ids[channel_id]
         
     isFlagged, reasonForFlag = addToContextStream(contextID, message_id, message_content)
-            
+                        
     if isFlagged:
         title = "Your Message was Flagged!"
         description = "The following message '" + str(message_content) + "' was flagged \n Reason for flag: " + ", ".join(reasonForFlag)
         embed = discord.Embed(title = title, description = description)
-        await message.author.send(embed=embed)
+        await message_author.send(embed=embed)
+        # await message_author.send("Your Message was Flagged!\n The following message '" + str(message_content) +  "' was flagged \n Reason for flag: " + ", ".join(reasonForFlag))
         await message.delete()
 
 @client.event

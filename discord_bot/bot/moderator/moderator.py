@@ -21,28 +21,28 @@ def addToContextStream(contextId, messageId, messageText):
 	context.addMessageRaw(messageId, messageText)
 	return context.evaluate()
 
-def evaluateMessage(messageText):
-	response = moderationsClient.moderations.create(input=messageText)
-	result = response.results[0]
-	flagged = result.flagged
-	categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
-	trueCategories = filter(lambda x: x[1], categoryFlags)
-	trueCategories = list(map(lambda x: x[0], trueCategories))
+# def evaluateMessage(messageText):
+# 	response = moderationsClient.moderations.create(input=messageText)
+# 	result = response.results[0]
+# 	flagged = result.flagged
+# 	categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
+# 	trueCategories = filter(lambda x: x[1], categoryFlags)
+# 	trueCategories = list(map(lambda x: x[0], trueCategories))
 
-	misinformationResponse = chatClient.chat.completions.create(
-		model="gpt-3.5-turbo",
-		messages=[
-			{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
-			{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageText},
-		]
-	)
+# 	misinformationResponse = chatClient.chat.completions.create(
+# 		model="gpt-3.5-turbo",
+# 		messages=[
+# 			{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
+# 			{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageText},
+# 		]
+# 	)
 
-	misinformation = misinformationResponse.choices[0].message.content == "FALSE"
+# 	misinformation = misinformationResponse.choices[0].message.content == "FALSE"
 
-	if misinformation:
-		trueCategories.append("misinformation")
+# 	if misinformation:
+# 		trueCategories.append("misinformation")
 
-	return (misinformation or flagged, trueCategories)
+# 	return (misinformation or flagged, trueCategories)
 
 class message:
 	def __init__(self, message, id):
@@ -75,15 +75,13 @@ class context:
 		messageString = "\n".join(messagesText)
 
 		response = moderationsClient.moderations.create(input=messageString)
-  
-		print(messageString)
 
 		result = response.results[0]
 		flagged = result.flagged
-		categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
+		categoryFlags = [(name, flag) for name, flag in result.categories]
 		trueCategories = filter(lambda x: x[1], categoryFlags)
 		trueCategories = list(map(lambda x: x[0], trueCategories))
-  
+      
 		if flagged:
 			self.messages[-1].flag()
 			self.messages[-1].unconsider()
@@ -114,6 +112,6 @@ class context:
 	def getId(self):
 		return self.id
 	
-if __name__ == '__main__':
-	contextid = startContextStream()
-	addToContextStream(contextid, 1, 'there are 1000 grams in a kilogram')
+# if __name__ == '__main__':
+# 	contextid = startContextStream()
+# 	addToContextStream(contextid, 1, 'there are 1000 grams in a kilogram')
