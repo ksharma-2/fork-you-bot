@@ -9,7 +9,7 @@ from dotenv import load_dotenv, find_dotenv
 from flask import request
 from flask_cors import CORS
 from utils import get_message_details
-from moderator.moderator import evaluate
+from moderator.moderator import addToContextStream, startContextStream
 
 load_dotenv()
 
@@ -20,6 +20,9 @@ tree = app_commands.CommandTree(client)
 
 guild = discord.Guild
 
+ids = dict()
+checkID = set()
+
 app = flask.Flask(__name__)
 CORS(app)
 
@@ -27,7 +30,23 @@ CORS(app)
 async def on_message(message):
     message_content = message.content
     message_author = message.author
-    if evaluate(message_content):
+    channel_id = message.channel.id
+    message_id = message.id
+    
+    if not (channel_id in checkID):
+        checkID.add(channel_id)
+        contextID = startContextStream()
+        ids[channel_id] = contextID
+        
+    contextID = ids[channel_id]
+        
+    isFlagged, reasonForFlag = addToContextStream(contextID, message_id, message_content)
+            
+    if isFlagged:
+        title = "Your Message was Flagged!"
+        description = "The following message '" + str(message_content) + "' was flagged \n Reason for flag: " + ", ".join(reasonForFlag)
+        embed = discord.Embed(title = title, description = description)
+        await message.author.send(embed=embed)
         await message.delete()
 
 @client.event

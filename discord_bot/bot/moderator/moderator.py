@@ -1,10 +1,9 @@
 #IMPORTS:
 from openai import OpenAI
 import uuid
-import pprint
 
 moderationsClient = OpenAI(api_key='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')
-chatClient = OpenAI(api_key='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')
+chatClient = OpenAI(api_key='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')
 
 contexts = {}
 
@@ -21,8 +20,6 @@ def addToContextStream(contextId, messageId, messageText):
 def evaluateMessage(messageText):
 	response = moderationsClient.moderations.create(input=messageText)
 	result = response.results[0]
-	response = moderationsClient.moderations.create(input=messageString)
-	result = response.results[0]
 	flagged = result.flagged
 	categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
 	trueCategories = filter(lambda x: x[1], categoryFlags)
@@ -32,7 +29,7 @@ def evaluateMessage(messageText):
 		model="gpt-3.5-turbo",
 		messages=[
 			{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
-			{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageString},
+			{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageText},
 		]
 	)
 
@@ -74,24 +71,31 @@ class context:
 		messageString = "\n".join(messagesText)
 
 		response = moderationsClient.moderations.create(input=messageString)
+  
+		print(messageString)
 
 		result = response.results[0]
 		flagged = result.flagged
 		categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
 		trueCategories = filter(lambda x: x[1], categoryFlags)
 		trueCategories = list(map(lambda x: x[0], trueCategories))
+  
+		if flagged:
+			self.messages[-1].flag()
+			self.messages[-1].unconsider()
+			return flagged, trueCategories
 
 		misinformationResponse = chatClient.chat.completions.create(
 			model="gpt-3.5-turbo",
 			messages=[
-				{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
-				{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageString},
+				{"role": "system", "content": "Can you fact-check a claim for me? When fact-checking, avoid negations and only use ‘true’, ‘false’, or ’no verdict’. Use the ’no verdict’ label when the claim lacks sufficient context, or there is not enough information to assess the veracity of the claim. Respond in no more than two words."},
+				{"role": "user", "content": self.messages[-1].text},
 			]
 		)
+  
+		misinformation = (misinformationResponse.choices[0].message.content).lower() == "false"
 
-		misinformation = misinformationResponse.choices[0].message.content == "FALSE"
-
-		if misinformation or flagged:
+		if misinformation:
 			self.messages[-1].flag()
 			self.messages[-1].unconsider()
 
