@@ -36,15 +36,15 @@ class MongoDbHandler:
             print(e)
             return False
 
-    # def getUserDetails(self, server_id, user_id) -> Union[dict, None]:
-    #     try:
-    #         return self.db.users.find_one({
-    #             "server": server_id,
-    #             "author": user_id
-    #         })
-    #     except Exception as e:
-    #         print(e)
-    #         return None
+    def getUserDetails(self, server_id, user_id) -> Union[dict, None]:
+        try:
+            return self.db.users.find_one({
+                "server": server_id,
+                "author": user_id
+            })
+        except Exception as e:
+            print(e)
+            return None
 
     # def getTopOffensive(self, client: discord.Client, guild_id: int) -> list:
     #     guild = client.get_guild(guild_id)

@@ -6,6 +6,7 @@ import flask
 import sys
 from discord import app_commands
 from dotenv import load_dotenv, find_dotenv
+from datetime import timedelta
 from flask import request
 from flask_cors import CORS
 from utils import get_message_details
@@ -27,6 +28,7 @@ CORS(app)
 @client.event
 async def on_message(message):
     message_content = message.content
+    message_author = message.author
     message_author_id = message.author.id
     message_server = message.guild.id
     
@@ -37,6 +39,16 @@ async def on_message(message):
             print("Updated user info")
         else:
             print("User update failed")
+
+        user_details = DB.getUserDetails(message_server,message_author_id)
+        if (user_details['score'] + 1 > 11):
+            await message_author.kick()
+        if (user_details['score'] + 1 > 10):
+            await message_author.timeout(timedelta(minutes=15))
+        if (user_details['score'] + 1 > 5):
+            await message_author.timeout(timedelta(minutes=5))
+        # print(user_details)
+        # print(message_author)
 
 @client.event
 async def on_ready():
