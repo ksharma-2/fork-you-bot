@@ -1,9 +1,13 @@
 #IMPORTS:
 from openai import OpenAI
 import uuid
+import os
+from dotenv import load_dotenv
 
-moderationsClient = OpenAI(api_key='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')
-chatClient = OpenAI(api_key='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')
+load_dotenv()
+
+moderationsClient = OpenAI(api_key=os.environ["OPEN_AI_API"])
+chatClient = OpenAI(api_key=os.environ["OPEN_AI_API_CHAT"])
 
 contexts = {}
 
