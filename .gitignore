@@ -1,2 +1,3 @@
 discordbotenv/
 discord_bot/bot/.env
+/discord_bot/.env
