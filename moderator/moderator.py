@@ -3,7 +3,8 @@ from openai import OpenAI
 import uuid
 import pprint
 
-client = OpenAI(api_key='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')
+moderationsClient = OpenAI(api_key='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')
+chatClient = OpenAI(api_key='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')
 
 contexts = {}
 
@@ -18,15 +19,29 @@ def addToContextStream(contextId, messageId, messageText):
 	return context.evaluate()
 
 def evaluateMessage(messageText):
-	response = client.moderations.create(input=messageText)
+	response = moderationsClient.moderations.create(input=messageText)
 	result = response.results[0]
-	response = client.moderations.create(input=messageString)
+	response = moderationsClient.moderations.create(input=messageString)
 	result = response.results[0]
 	flagged = result.flagged
 	categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
 	trueCategories = filter(lambda x: x[1], categoryFlags)
 	trueCategories = list(map(lambda x: x[0], trueCategories))
-	return (flagged, trueCategories)
+
+	misinformationResponse = chatClient.chat.completions.create(
+		model="gpt-3.5-turbo",
+		messages=[
+			{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
+			{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageString},
+		]
+	)
+
+	misinformation = misinformationResponse.choices[0].message.content == "FALSE"
+
+	if misinformation:
+		trueCategories.append("misinformation")
+
+	return (misinformation or flagged, trueCategories)
 
 class message:
 	def __init__(self, message, id):
@@ -57,16 +72,33 @@ class context:
 		filteredMessages = filter(lambda x: x.consider, self.messages)
 		messagesText = map(lambda x: x.text, filteredMessages)
 		messageString = "\n".join(messagesText)
-		response = client.moderations.create(input=messageString)
+
+		response = moderationsClient.moderations.create(input=messageString)
+
 		result = response.results[0]
 		flagged = result.flagged
 		categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
 		trueCategories = filter(lambda x: x[1], categoryFlags)
 		trueCategories = list(map(lambda x: x[0], trueCategories))
-		if flagged:
+
+		misinformationResponse = chatClient.chat.completions.create(
+			model="gpt-3.5-turbo",
+			messages=[
+				{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
+				{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageString},
+			]
+		)
+
+		misinformation = misinformationResponse.choices[0].message.content == "FALSE"
+
+		if misinformation or flagged:
 			self.messages[-1].flag()
 			self.messages[-1].unconsider()
-		return (flagged, trueCategories)
+
+		if misinformation:
+			trueCategories.append("misinformation")
+
+		return (misinformation or flagged, trueCategories)
 		 
 	def clear(self):
 		self.messages = []
@@ -76,4 +108,4 @@ class context:
 	
 if __name__ == '__main__':
 	contextid = startContextStream()
-	addToContextStream(contextid, 1, 'I Hate You, Kill Yourself')
+	addToContextStream(contextid, 1, 'there are 1000 grams in a kilogram')

@@ -10,8 +10,8 @@ from datetime import timedelta
 from flask import request
 from flask_cors import CORS
 from utils import get_message_details
-from moderator.moderator import evaluate
 from db import MongoDbHandler
+from moderator.moderator import addToContextStream, startContextStream
 
 load_dotenv()
 
@@ -22,6 +22,9 @@ tree = app_commands.CommandTree(client)
 
 guild = discord.Guild
 
+ids = dict()
+checkID = set()
+
 app = flask.Flask(__name__)
 CORS(app)
 
@@ -29,10 +32,26 @@ CORS(app)
 async def on_message(message):
     message_content = message.content
     message_author = message.author
+    channel_id = message.channel.id
+    message_id = message.id
     message_author_id = message.author.id
     message_server = message.guild.id
     
-    if evaluate(message_content):
+    if not (channel_id in checkID):
+        checkID.add(channel_id)
+        contextID = startContextStream()
+        ids[channel_id] = contextID
+        
+    contextID = ids[channel_id]
+        
+    isFlagged, reasonForFlag = addToContextStream(contextID, message_id, message_content)
+                        
+    if isFlagged:
+        title = "Your Message was Flagged!"
+        description = "The following message '" + str(message_content) + "' was flagged \n Reason for flag: " + ", ".join(reasonForFlag)
+        embed = discord.Embed(title = title, description = description)
+        await message_author.send(embed=embed)
+        # await message_author.send("Your Message was Flagged!\n The following message '" + str(message_content) +  "' was flagged \n Reason for flag: " + ", ".join(reasonForFlag))
         await message.delete()
         is_successful = DB.updateUserScore(message_author_id, message_server)
         if is_successful:
