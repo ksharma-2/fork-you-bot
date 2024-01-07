@@ -1,2 +1,6 @@
 discordbotenv/
+<<<<<<< HEAD
 discord_bot/bot/.env
+=======
+/discord_bot/.env
+>>>>>>> 1bda0e08c46d29d6868e4e5226ae77ff175c3216
