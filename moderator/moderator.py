@@ -1,35 +1,68 @@
 #IMPORTS:
-import requests as req
 from openai import OpenAI
+import uuid
 import pprint
-import sys
 
 client = OpenAI(api_key='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')
 
-print('Ran moderator')
+contexts = {}
 
-def evaluate(message):
-    """
-        Reads in message object and passess it into Moderation Model for inference.
-    """
-    
-    print(message)
-    
-    #Call stringify method of object to send to Moderation Model.
-    # message = message.stringify()
+def startContextStream():
+	newContext = context()
+	contexts[newContext.getId()] = newContext
+	return newContext.getId()
 
-    headers = {"Content-Type": "application/json","Authorization" : "Bearer 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"}
+def addToContextStream(contextId, messageId, messageText):
+	context = contexts[contextId]
+	context.addMessageRaw(messageId, messageText)
+	return context.evaluate()
 
-    data = {"input": "keep yourself safe"} #Sample test message
-    
-    response = client.moderations.create(input=message)
-    
-    # r = req.post('https://api.openai.com/v1/moderations', headers=headers, data=data)
-    # r = req.post('https://httpbin.org/post', data={'key': 'value'})
+def evaluateMessage(messageText):
+	response = client.moderations.create(input=messageText)
+	result = response.results[0]
+	flagged = result.flagged # add more info into return
+	return flagged
 
-    print(response.results[0].flagged)
+class message:
+	def __init__(self, message, id):
+		self.text = message
+		self.id = id
+		self.flagged = False
+		self.consider = True
+	
+	def flag(self):
+		self.flagged = True
+	
+	def unconsider(self):
+		self.consider = False
 
-if __name__ == "__main__":
-    message = sys.argv[1:]
-    message = ' '.join(message)
-    evaluate(message)
+class context:
+	def __init__(self, maxMessages=1000):
+		self.maxMessages = maxMessages
+		self.messages = []
+		self.id = uuid.uuid4()
+		  
+	def addMessageRaw(self, messageId, messageText):
+		newMessage = message(messageText, messageId)
+		if self.maxMessages == len(self.messages):
+			self.messages.pop(0)
+		self.messages.append(newMessage)
+	
+	def evaluate(self):
+		filteredMessages = filter(lambda x: x.consider, self.messages)
+		messagesText = map(lambda x: x.text, filteredMessages)
+		messageString = "\n".join(messagesText)
+		response = client.moderations.create(input=messageString)
+		result = response.results[0]
+		flagged = result.flagged # add more info into return
+		if flagged:
+			self.messages[-1].flag()
+			self.messages[-1].unconsider()
+		return flagged
+		pass
+		 
+	def clear(self):
+		self.messages = []
+		  
+	def getId(self):
+		return self.id
