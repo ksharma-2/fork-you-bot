@@ -1,35 +1,111 @@
 #IMPORTS:
-import requests as req
 from openai import OpenAI
+import uuid
 import pprint
-import sys
 
-client = OpenAI(api_key='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')
+moderationsClient = OpenAI(api_key='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')
+chatClient = OpenAI(api_key='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')
 
-print('Ran moderator')
+contexts = {}
 
-def evaluate(message):
-    """
-        Reads in message object and passess it into Moderation Model for inference.
-    """
-    
-    print(message)
-    
-    #Call stringify method of object to send to Moderation Model.
-    # message = message.stringify()
+def startContextStream():
+	newContext = context()
+	contexts[newContext.getId()] = newContext
+	return newContext.getId()
 
-    # headers = {"Content-Type": "application/json","Authorization" : "Bearer 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"}
+def addToContextStream(contextId, messageId, messageText):
+	context = contexts[contextId]
+	context.addMessageRaw(messageId, messageText)
+	return context.evaluate()
 
-    # data = {"input": "keep yourself safe"} #Sample test message
-    
-    response = client.moderations.create(input=message)
-    
-    # r = req.post('https://api.openai.com/v1/moderations', headers=headers, data=data)
-    # r = req.post('https://httpbin.org/post', data={'key': 'value'})
+def evaluateMessage(messageText):
+	response = moderationsClient.moderations.create(input=messageText)
+	result = response.results[0]
+	response = moderationsClient.moderations.create(input=messageString)
+	result = response.results[0]
+	flagged = result.flagged
+	categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
+	trueCategories = filter(lambda x: x[1], categoryFlags)
+	trueCategories = list(map(lambda x: x[0], trueCategories))
 
-    return response.results[0].flagged
+	misinformationResponse = chatClient.chat.completions.create(
+		model="gpt-3.5-turbo",
+		messages=[
+			{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
+			{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageString},
+		]
+	)
 
-# if __name__ == "__main__":
-#     message = sys.argv[1:]
-#     message = ' '.join(message)
-#     evaluate(message)
+	misinformation = misinformationResponse.choices[0].message.content == "FALSE"
+
+	if misinformation:
+		trueCategories.append("misinformation")
+
+	return (misinformation or flagged, trueCategories)
+
+class message:
+	def __init__(self, message, id):
+		self.text = message
+		self.id = id
+		self.flagged = False
+		self.consider = True
+	
+	def flag(self):
+		self.flagged = True
+	
+	def unconsider(self):
+		self.consider = False
+
+class context:
+	def __init__(self, maxMessages=1000):
+		self.maxMessages = maxMessages
+		self.messages = []
+		self.id = uuid.uuid4()
+		  
+	def addMessageRaw(self, messageId, messageText):
+		newMessage = message(messageText, messageId)
+		if self.maxMessages == len(self.messages):
+			self.messages.pop(0)
+		self.messages.append(newMessage)
+	
+	def evaluate(self):
+		filteredMessages = filter(lambda x: x.consider, self.messages)
+		messagesText = map(lambda x: x.text, filteredMessages)
+		messageString = "\n".join(messagesText)
+
+		response = moderationsClient.moderations.create(input=messageString)
+
+		result = response.results[0]
+		flagged = result.flagged
+		categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
+		trueCategories = filter(lambda x: x[1], categoryFlags)
+		trueCategories = list(map(lambda x: x[0], trueCategories))
+
+		misinformationResponse = chatClient.chat.completions.create(
+			model="gpt-3.5-turbo",
+			messages=[
+				{"role": "system", "content": "You are a helpful assistant designed to only say TRUE or FALSE exactly once"},
+				{"role": "user", "content": "IS THE FOLLOWING MESSAGE TRUE: " + messageString},
+			]
+		)
+
+		misinformation = misinformationResponse.choices[0].message.content == "FALSE"
+
+		if misinformation or flagged:
+			self.messages[-1].flag()
+			self.messages[-1].unconsider()
+
+		if misinformation:
+			trueCategories.append("misinformation")
+
+		return (misinformation or flagged, trueCategories)
+		 
+	def clear(self):
+		self.messages = []
+		  
+	def getId(self):
+		return self.id
+	
+if __name__ == '__main__':
+	contextid = startContextStream()
+	addToContextStream(contextid, 1, 'there are 1000 grams in a kilogram')
