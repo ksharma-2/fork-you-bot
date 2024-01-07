@@ -3,12 +3,13 @@ import threading
 
 import discord
 import flask
+import sys
 from discord import app_commands
 from dotenv import load_dotenv, find_dotenv
 from flask import request
 from flask_cors import CORS
 from utils import get_message_details
-import sys
+from moderator.moderator import evaluate
 
 load_dotenv()
 
@@ -26,9 +27,7 @@ CORS(app)
 async def on_message(message):
     message_content = message.content
     message_author = message.author
-    print(str(message_author) + " said " + message_content)
-    print(message)
-    if message.content == "fuck off":
+    if evaluate(message_content):
         await message.delete()
 
 @client.event
