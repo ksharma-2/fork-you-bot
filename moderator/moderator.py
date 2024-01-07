@@ -41,7 +41,7 @@ def evaluateMessage(messageText):
 	if misinformation:
 		trueCategories.append("misinformation")
 
-	return (flagged, trueCategories)
+	return (misinformation or flagged, trueCategories)
 
 class message:
 	def __init__(self, message, id):
@@ -98,7 +98,7 @@ class context:
 		if misinformation:
 			trueCategories.append("misinformation")
 
-		return (flagged, trueCategories)
+		return (misinformation or flagged, trueCategories)
 		 
 	def clear(self):
 		self.messages = []
