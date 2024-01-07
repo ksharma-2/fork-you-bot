@@ -20,8 +20,13 @@ def addToContextStream(contextId, messageId, messageText):
 def evaluateMessage(messageText):
 	response = client.moderations.create(input=messageText)
 	result = response.results[0]
-	flagged = result.flagged # add more info into return
-	return flagged
+	response = client.moderations.create(input=messageString)
+	result = response.results[0]
+	flagged = result.flagged
+	categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
+	trueCategories = filter(lambda x: x[1], categoryFlags)
+	trueCategories = list(map(lambda x: x[0], trueCategories))
+	return (flagged, trueCategories)
 
 class message:
 	def __init__(self, message, id):
@@ -54,15 +59,21 @@ class context:
 		messageString = "\n".join(messagesText)
 		response = client.moderations.create(input=messageString)
 		result = response.results[0]
-		flagged = result.flagged # add more info into return
+		flagged = result.flagged
+		categoryFlags = [(name, flag) for name, flag in result.categories.model_extra.items()]
+		trueCategories = filter(lambda x: x[1], categoryFlags)
+		trueCategories = list(map(lambda x: x[0], trueCategories))
 		if flagged:
 			self.messages[-1].flag()
 			self.messages[-1].unconsider()
-		return flagged
-		pass
+		return (flagged, trueCategories)
 		 
 	def clear(self):
 		self.messages = []
 		  
 	def getId(self):
 		return self.id
+	
+if __name__ == '__main__':
+	contextid = startContextStream()
+	addToContextStream(contextid, 1, 'I Hate You, Kill Yourself')
